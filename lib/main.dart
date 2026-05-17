@@ -1032,7 +1032,7 @@ class HomeScreen extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/bus_bg.PNG', fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.blue.shade900)),
+          Image.asset('assets/bus_bg.png', fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.blue.shade900)),
           Column(
             children: [
               Container(
@@ -3637,7 +3637,7 @@ class DeveloperInfoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final developers = [
-      {'name': 'Hafsa Saleem', 'role': 'Lecturer at CUI', 'image': 'assets/dev1.PNG', 'email': 'hafsasaleem@gmail.com', 'phone': 'Nil'},
+      {'name': 'Hafsa Saleem', 'role': 'Lecturer at CUI', 'image': 'assets/dev1.png', 'email': 'hafsasaleem@gmail.com', 'phone': 'Nil'},
       {'name': 'Nouman Nadir', 'role': ' Developer', 'image': 'assets/dev2.jpeg', 'email': 'noumannadir595@gmail.com', 'phone': '+92 325 9869056'},
       {'name': 'Aqsa', 'role': ' Developer', 'image': 'assets/dev3.jpeg', 'email': 'aqsaqamar0499@gmail.com', 'phone': 'Nil'},
     ];

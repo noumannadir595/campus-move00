@@ -24,7 +24,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6'
+          flutter-version: '3.22.6'   # ✅ Updated from 3.19.6 to 3.22.6
           channel: 'stable'
 
       - name: Install dependencies
@@ -33,7 +33,7 @@ jobs:
       - name: Build web
         run: flutter build web --release --base-href /${{ github.event.repository.name }}/
 
-      - name: Add .nojekyll (bypass Jekyll)
+      - name: Add .nojekyll
         run: touch build/web/.nojekyll
 
       - name: Upload artifact
@@ -44,10 +44,6 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4

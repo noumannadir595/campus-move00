@@ -9,42 +9,29 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  # Firebase
   firebase_core: ^3.8.0
   firebase_auth: ^5.3.0
   firebase_database: ^11.1.0
   firebase_storage: ^12.3.0
-
-  # UI & State
   provider: ^6.1.2
-  shared_preferences: ^2.2.3
-  intl: ^0.19.0
-
-  # Media & Files
   image_picker: ^1.1.2
   file_picker: ^8.1.0
-  url_launcher: ^6.3.1
-
-  # QR & Scanner
+  shared_preferences: ^2.2.3
+  intl: ^0.19.0
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.0.1
-
-  # Notifications
   flutter_local_notifications: ^18.0.1
-
-  # PDF & Charts
+  url_launcher: ^6.3.1
   printing: ^5.13.0
   pdf: ^3.10.7
   fl_chart: ^0.69.0
-
-  # HTTP (for Ntfy SOS notifications)
   http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1   # Added for app icon
 
 flutter:
   uses-material-design: true
@@ -53,4 +40,14 @@ flutter:
     - assets/dev1.PNG
     - assets/dev2.jpeg
     - assets/dev3.jpeg
-    - assets/bus_bg.jpg
+    - assets/bus_bg.PNG
+    - assets/ic_launcher.PNG      # Add your icon file here (PNG recommended)
+
+# App icon configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/ic_launcher.PNG"
+  adaptive_icon_background: "#1E3A8A"   # Blue background for Android adaptive icon
+  adaptive_icon_foreground: "assets/ic_launcher.PNG"
+  remove_alpha_ios: true

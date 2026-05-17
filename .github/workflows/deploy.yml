@@ -2,7 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -11,12 +12,13 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,13 +26,15 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: stable
           channel: stable
+
+      - name: Verify Flutter Installation
+        run: flutter --version
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build web
+      - name: Build Flutter Web
         run: flutter build web --release --base-href /${{ github.event.repository.name }}/
 
       - name: Add .nojekyll
@@ -42,8 +46,14 @@ jobs:
           path: build/web
 
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     needs: build
     runs-on: ubuntu-latest
+
     steps:
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4

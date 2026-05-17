@@ -36,7 +36,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/comsats_logo.png
+    - assets/comsats_logo.PNG
     - assets/dev1.PNG
     - assets/dev2.jpeg
     - assets/dev3.jpeg

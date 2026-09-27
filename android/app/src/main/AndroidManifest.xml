@@ -5,14 +5,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="campus_move"
+        android:label="Campus Move"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyB0mgL8Jd754oahsaUMJLSS01CYzyAqnNY" />
+            android:value="AIzaSyBN4E2-TbxmHGbydD7d27i-k58qPVUazVc" />
 
         <activity
             android:name=".MainActivity"

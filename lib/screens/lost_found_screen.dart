@@ -1,8 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -24,18 +24,92 @@ class _LostFoundScreenState extends State<LostFoundScreen>
   late TabController _tabController;
   List<Map<String, dynamic>> _allPosts = [];
   bool _loading = true;
+  bool _hasAccess = false;
+  bool _checkingAccess = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadPosts();
+    _checkTransportAccessAndLoad();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  // ==================== CHECK TRANSPORT ACCESS ====================
+  Future<bool> _checkTransportAccess() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      // 1. User profile check
+      final userSnap = await getDatabase().ref('users/${user.uid}').get();
+      if (!userSnap.exists) return false;
+      final userData = Map<String, dynamic>.from(userSnap.value as Map);
+      if ((userData['name'] ?? '').toString().trim().isEmpty) return false;
+
+      // 2. Application approved check
+      final appSnap = await getDatabase()
+          .ref('applications')
+          .orderByChild('userId')
+          .equalTo(user.uid)
+          .get();
+      if (!appSnap.exists) return false;
+
+      final apps = Map<dynamic, dynamic>.from(appSnap.value as Map);
+      if (apps.isEmpty) return false;
+
+      final app = Map<String, dynamic>.from(apps.values.first);
+      if (app['status'] != 'approved') return false;
+
+      // 3. Transport card uploaded check
+      final cardSnap = await getDatabase()
+          .ref('transportCards')
+          .orderByChild('userId')
+          .equalTo(user.uid)
+          .get();
+      if (!cardSnap.exists) return false;
+
+      final cards = Map<dynamic, dynamic>.from(cardSnap.value as Map);
+      if (cards.isEmpty) return false;
+
+      final card = Map<String, dynamic>.from(cards.values.first);
+
+      final hasImage = card['cardImageBase64'] != null &&
+          card['cardImageBase64'].toString().isNotEmpty;
+      if (!hasImage) return false;
+
+      if (card['valid'] == false) return false;
+
+      final expiry = card['expiry'];
+      if (expiry != null) {
+        final expMs = int.tryParse(expiry.toString()) ?? 0;
+        if (expMs > 0 &&
+            DateTime.now().millisecondsSinceEpoch > expMs) {
+          return false;
+        }
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('Access check error: $e');
+      return false;
+    }
+  }
+
+  Future<void> _checkTransportAccessAndLoad() async {
+    setState(() => _checkingAccess = true);
+    final hasAccess = await _checkTransportAccess();
+    if (!mounted) return;
+    setState(() {
+      _hasAccess = hasAccess;
+      _checkingAccess = false;
+    });
+    await _loadPosts();
   }
 
   Future<void> _loadPosts() async {
@@ -105,13 +179,72 @@ class _LostFoundScreenState extends State<LostFoundScreen>
     }
   }
 
-  void _openAddSheet() {
+  void _openAddSheet() async {
+    final hasAccess = await _checkTransportAccess();
+    if (!mounted) return;
+
+    if (!hasAccess) {
+      _showAccessDeniedDialog();
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => AddLostFoundSheet(
         onPostAdded: _loadPosts,
+      ),
+    );
+  }
+
+  void _showAccessDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_outline, color: AppColors.primary),
+            SizedBox(width: 10),
+            Text('Access Required'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'To post in Lost & Found, you need transport access.',
+              style: TextStyle(fontSize: 14, height: 1.5),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Requirements:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            SizedBox(height: 6),
+            Text('• Complete profile',
+                style: TextStyle(fontSize: 13, height: 1.6)),
+            Text('• Transport application approved',
+                style: TextStyle(fontSize: 13, height: 1.6)),
+            Text('• Transport card uploaded by admin',
+                style: TextStyle(fontSize: 13, height: 1.6)),
+            SizedBox(height: 12),
+            Text(
+              'Please apply for transport first and wait for admin approval.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -148,21 +281,84 @@ class _LostFoundScreenState extends State<LostFoundScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddSheet,
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add Post'),
-      ),
-      body: _loading
+      floatingActionButton: _hasAccess
+          ? FloatingActionButton.extended(
+              onPressed: _openAddSheet,
+              backgroundColor: AppColors.primary,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add Post'),
+            )
+          : null,
+      body: _checkingAccess
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
+          : Column(
               children: [
-                _buildTabContent('Lost'),
-                _buildTabContent('Found'),
+                if (!_hasAccess) _buildNoAccessBanner(),
+                Expanded(
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildTabContent('Lost'),
+                            _buildTabContent('Found'),
+                          ],
+                        ),
+                ),
               ],
             ),
+    );
+  }
+
+  // ==================== VIEW ONLY MODE BANNER (ENGLISH) ====================
+  Widget _buildNoAccessBanner() {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.orange.withValues(alpha: 0.15),
+            Colors.red.withValues(alpha: 0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.lock_outline,
+                color: Colors.orange, size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'View Only Mode',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'You need transport access to post. Apply for transport first.',
+                  style: TextStyle(fontSize: 12, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -202,7 +398,9 @@ class _LostFoundScreenState extends State<LostFoundScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'Tap "Add Post" to create one',
+                _hasAccess
+                    ? 'Tap "Add Post" to create one'
+                    : 'Transport access required to post',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -224,13 +422,15 @@ class _LostFoundScreenState extends State<LostFoundScreen>
     );
   }
 
+  // ==================== POST CARD (SQUARE IMAGE - NO CROP) ====================
   Widget _buildPostCard(Map<String, dynamic> post) {
     final isLost = post['type'] == 'Lost';
     final badgeColor = isLost ? AppColors.lostBadge : AppColors.foundBadge;
     final user = FirebaseAuth.instance.currentUser;
     final canDelete = post['userId'] == user?.uid;
-    final hasImage =
-        post['imageUrl'] != null && post['imageUrl'].toString().isNotEmpty;
+
+    final hasImage = post['imageBase64'] != null &&
+        post['imageBase64'].toString().isNotEmpty;
 
     return Card(
       elevation: 3,
@@ -241,33 +441,50 @@ class _LostFoundScreenState extends State<LostFoundScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
+          // ==================== SQUARE IMAGE (FULL - NO CROP) ====================
           if (hasImage)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child: Image.network(
-                post['imageUrl'],
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  height: 100,
-                  color: Colors.grey.shade200,
-                  child: const Icon(Icons.broken_image, size: 40),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 1, // Square (1:1)
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 1,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Image.memory(
+                          base64Decode(post['imageBase64']),
+                          fit: BoxFit.contain, // Full image, no crop
+                          errorBuilder: (_, __, ___) => Container(
+                            color: Colors.grey.shade200,
+                            child: const Center(
+                              child: Icon(Icons.broken_image, size: 40),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
 
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    // Lost/Found Badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
@@ -421,12 +638,24 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
       final picked = await picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 70,
-        maxWidth: 1200,
+        maxWidth: 1000,
+        maxHeight: 1000,
       );
 
-      if (picked != null) {
-        setState(() => _pickedImage = picked);
+      if (picked == null) return;
+
+      final sizeInBytes = await picked.length();
+      if (sizeInBytes > 700 * 1024) {
+        if (mounted) {
+          CustomSnackbar.warning(
+            context,
+            'Image too large (${(sizeInBytes / 1024).toInt()} KB). Please choose a smaller image.',
+          );
+        }
+        return;
       }
+
+      setState(() => _pickedImage = picked);
     } catch (e) {
       if (mounted) {
         CustomSnackbar.error(context, 'Failed to pick image: $e');
@@ -435,7 +664,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
   }
 
   Future<void> _submit() async {
-    // Validate
     if (_titleCtrl.text.trim().isEmpty) {
       CustomSnackbar.warning(context, 'Please enter a title');
       return;
@@ -470,6 +698,55 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
     setState(() => _isSubmitting = true);
 
     try {
+      // Double-check access
+      final appSnap = await getDatabase()
+          .ref('applications')
+          .orderByChild('userId')
+          .equalTo(user.uid)
+          .get();
+
+      if (!appSnap.exists) {
+        if (mounted) {
+          CustomSnackbar.error(context, 'Transport access required');
+        }
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      final apps = Map<dynamic, dynamic>.from(appSnap.value as Map);
+      if (apps.isEmpty) {
+        if (mounted) {
+          CustomSnackbar.error(context, 'Transport access required');
+        }
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      final app = Map<String, dynamic>.from(apps.values.first);
+      if (app['status'] != 'approved') {
+        if (mounted) {
+          CustomSnackbar.error(
+              context, 'Transport application not approved yet');
+        }
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      final cardSnap = await getDatabase()
+          .ref('transportCards')
+          .orderByChild('userId')
+          .equalTo(user.uid)
+          .get();
+
+      if (!cardSnap.exists) {
+        if (mounted) {
+          CustomSnackbar.error(
+              context, 'Transport card not uploaded yet');
+        }
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
       // Get user name
       String userName = 'User';
       try {
@@ -479,38 +756,26 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
         }
       } catch (_) {}
 
-      // Upload image
-      String imageUrl = '';
+      // Base64 encode
+      String imageBase64 = '';
       try {
-        final fileName =
-            'lostfound_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final ref =
-            FirebaseStorage.instance.ref().child('lostfound/$fileName');
-
-        if (kIsWeb) {
-          final bytes = await _pickedImage!.readAsBytes();
-          await ref.putData(bytes);
-        } else {
-          await ref.putFile(File(_pickedImage!.path));
-        }
-
-        imageUrl = await ref.getDownloadURL();
+        final bytes = await _pickedImage!.readAsBytes();
+        imageBase64 = base64Encode(bytes);
       } catch (e) {
         if (mounted) {
-          CustomSnackbar.error(context, 'Image upload failed: $e');
+          CustomSnackbar.error(context, 'Image encode failed: $e');
         }
         setState(() => _isSubmitting = false);
         return;
       }
 
-      // Save to Firebase
       await getDatabase().ref('lostfound').push().set({
         'type': _selectedType,
         'title': _titleCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
         'location': _locationCtrl.text.trim(),
         'contact': _contactCtrl.text.trim(),
-        'imageUrl': imageUrl,
+        'imageBase64': imageBase64,
         'userId': user.uid,
         'userName': userName,
         'timestamp': ServerValue.timestamp,
@@ -543,7 +808,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
           ),
           child: Column(
             children: [
-              // Handle
               Container(
                 margin: const EdgeInsets.only(top: 12),
                 width: 50,
@@ -554,7 +818,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Title
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -573,13 +836,11 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                 ),
               ),
               const Divider(height: 30),
-              // Content
               Expanded(
                 child: ListView(
                   controller: scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   children: [
-                    // Type selector
                     const Text(
                       'Post Type',
                       style: TextStyle(
@@ -608,8 +869,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                       ],
                     ),
                     const SizedBox(height: 20),
-
-                    // Title
                     TextField(
                       controller: _titleCtrl,
                       decoration: const InputDecoration(
@@ -619,8 +878,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                       ),
                     ),
                     const SizedBox(height: 14),
-
-                    // Description
                     TextField(
                       controller: _descCtrl,
                       maxLines: 3,
@@ -631,8 +888,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                       ),
                     ),
                     const SizedBox(height: 14),
-
-                    // Location
                     TextField(
                       controller: _locationCtrl,
                       decoration: const InputDecoration(
@@ -642,8 +897,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                       ),
                     ),
                     const SizedBox(height: 14),
-
-                    // Contact
                     TextField(
                       controller: _contactCtrl,
                       keyboardType: TextInputType.phone,
@@ -654,8 +907,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Image picker
                     const Text(
                       'Image * (Required)',
                       style: TextStyle(
@@ -676,7 +927,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                                 ? AppColors.success
                                 : Colors.grey.shade300,
                             width: 2,
-                            style: BorderStyle.solid,
                           ),
                         ),
                         child: _pickedImage == null
@@ -700,12 +950,12 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                                     if (kIsWeb)
                                       Image.network(
                                         _pickedImage!.path,
-                                        fit: BoxFit.cover,
+                                        fit: BoxFit.contain,
                                       )
                                     else
                                       Image.file(
                                         File(_pickedImage!.path),
-                                        fit: BoxFit.cover,
+                                        fit: BoxFit.contain,
                                       ),
                                     Positioned(
                                       top: 8,
@@ -733,8 +983,6 @@ class _AddLostFoundSheetState extends State<AddLostFoundSheet> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Submit
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(

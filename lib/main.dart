@@ -8,12 +8,16 @@ import 'core/providers.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'theme.dart';
+import 'utils/seed_routes.dart';  // ✅ NAYA IMPORT
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await initNotifications();
   await initFCM();
+
+  // ⚠️⚠️ EK BAAR RUN KARO — PHIR YE LINE HATA DO ⚠️⚠️
+  await SeedRoutes.clearAndSeed();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,6 +23,7 @@ import 'routes_screen.dart';
 import 'sos_screen.dart';
 import 'student_attendance_screen.dart';
 import 'transport_card_screen.dart';
+import 'transport_fees_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -173,11 +173,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
                               colors: [Color(0xFFEC4899), Color(0xFFDB2777)],
                             ),
-                            borderRadius: const BorderRadius.only(
+                            borderRadius: BorderRadius.only(
                               topLeft: Radius.circular(11),
                               bottomLeft: Radius.circular(11),
                             ),
@@ -298,6 +298,17 @@ class _HomeScreenState extends State<HomeScreen> {
                               );
                             }
                           },
+                        ),
+                        // ==================== TRANSPORT FEES (NEW) ====================
+                        ModuleCard(
+                          title: 'Transport Fees',
+                          icon: Icons.receipt_long_rounded,
+                          gradient: AppColors.faqGradient,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const TransportFeesScreen()),
+                          ),
                         ),
                         ModuleCard(
                           title: user == null ? 'Login / Signup' : 'My Profile',

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 class FAQScreen extends StatelessWidget {
   const FAQScreen({super.key});
 
@@ -7,72 +9,128 @@ class FAQScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<Map<String, String>> faqs = [
       {
-        'q': 'How to apply for transport service?',
+        'q': 'How do I create an account?',
         'a':
-            'Login to the app, go to "Apply Transport" module, fill the form and submit. Admin will review.'
+            'Tap "Login / Signup" on the home screen. Choose Student or Faculty tab. Enter your name, email, phone number and password, then tap Sign Up.'
       },
       {
-        'q': 'How to mark attendance on the bus?',
+        'q': 'Which email can I use to sign up?',
         'a':
-            'After fee payment, go to "Attendance" module and scan the QR code displayed by the driver.'
+            'Students: FA22-BSE-038@students.cuisahiwal.edu.pk\n\nFaculty: name@cuisahiwal.edu.pk'
       },
       {
-        'q': 'How to get my transport card?',
+        'q': 'I forgot my password. What should I do?',
         'a':
-            'After payment verification, go to "My Card" module and generate your digital card.'
+            'On the Login screen, enter your email and tap "Forgot Password?". A reset link will be sent to your email. Open the link and set a new password.'
       },
       {
-        'q': 'What to do if I lose an item on the bus?',
-        'a': 'Use "Lost & Found" module to post details. Admin will review.'
-      },
-      {
-        'q': 'How to send emergency SOS?',
-        'a': 'Tap SOS button. Alert will be sent to admin and guardian.'
-      },
-      {
-        'q': 'How to become a driver?',
+        'q': 'How do I apply for transport?',
         'a':
-            'Use "Driver Registration" module. Admin will verify and approve.'
+            'Go to Home → "Apply Transport". Your information will be auto-filled. Just select your route and tap Submit.'
       },
       {
-        'q': 'How to check application status?',
-        'a': 'Go to "Profile" screen. Status and payment info shown there.'
-      },
-      {
-        'q': 'How to update guardian info?',
-        'a': 'Go to "Profile" screen, Guardian Information section.'
-      },
-      {
-        'q': 'How to change password?',
-        'a': 'Go to "Profile" screen, Security section.'
-      },
-      {
-        'q': 'How to contact support?',
+        'q': 'How do I get my fee challan?',
         'a':
-            'Email admin@campusmove.com or call university transport office.'
+            'After applying, go to "Transport Fees" or "Profile" screen. You will find the option to view and download the challan PDF there.'
+      },
+      {
+        'q': 'How do I pay the transport fee?',
+        'a':
+            '1. Print the challan\n2. Submit it at any bank\n3. Show the paid challan at the Transport Desk\n4. Admin will verify it'
+      },
+      {
+        'q': 'How long does approval take?',
+        'a': 'It usually takes 2-3 working days.'
+      },
+      {
+        'q': 'How do I check my application status?',
+        'a':
+            'Go to Home → "Apply Transport" or "Profile" screen. Your status will be shown there — Processing / Approved / Rejected.'
+      },
+      {
+        'q': 'How do I get my transport card?',
+        'a':
+            'After your application is approved, the admin will upload your card. Go to Home → "My Card" to view it.'
+      },
+      {
+        'q': 'How do I mark attendance on the bus?',
+        'a':
+            'Go to Home → "Attendance". The camera will open. Scan the QR code shown by the driver. You will get a confirmation message.'
+      },
+      {
+        'q': 'How do I track my bus live?',
+        'a':
+            'Go to Home → "Live Tracking". Active routes will appear at the top (green). Tap Direction A or B to see the bus on the map.'
+      },
+      {
+        'q': 'How do I post a lost or found item?',
+        'a':
+            'Go to Home → "Lost & Found". Tap "Add Post". Choose Lost or Found. Enter the details and add an image. Tap POST.'
+      },
+      {
+        'q': 'How do I use SOS?',
+        'a':
+            'Go to Home → "SOS". Tap the big red button. An emergency alert will be sent to the admin and your guardian.'
+      },
+      {
+        'q': 'How do I change my profile picture?',
+        'a':
+            'On the "Profile" screen, tap the camera icon. Choose an image from the gallery. It will be updated automatically.'
+      },
+      {
+        'q': 'How do I contact support?',
+        'a':
+            'Email: admin@campusmove.com\n\nOr send a message through the "Feedback" module.\n\nOr visit the Transport Office.'
       },
     ];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Frequently Asked Questions')),
+      appBar: AppBar(
+        title: const Text('FAQs'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: AppColors.primaryGradient,
+          ),
+        ),
+      ),
       body: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: faqs.length,
-        itemBuilder: (ctx, i) => Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 2,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: ExpansionTile(
-            leading: const Icon(Icons.help_outline, color: Colors.blue),
-            title: Text(faqs[i]['q']!,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            children: [
-              Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(faqs[i]['a']!))
-            ],
-          ),
-        ),
+        itemBuilder: (ctx, i) {
+          final faq = faqs[i];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ExpansionTile(
+              leading: const Icon(
+                Icons.help_outline,
+                color: AppColors.primary,
+              ),
+              title: Text(
+                faq['q']!,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  faq['a']!,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
